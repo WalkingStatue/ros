@@ -40,5 +40,5 @@ place_survivors(world_grid, num_survivors)
 place_agent(world_grid)
 
 # Visualize the grid with agents and survivors
-visualize_grid(world_grid)
+visualize_grid(world_grid) 
 
