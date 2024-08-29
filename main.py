@@ -1,7 +1,9 @@
 import random
+import numpy as np
 from grid import create_grid, place_obstacles
 from visualize import visualize_grid
 from agent import place_agent, place_survivors
+from simulation import simulate
 
 # Get grid size from user input
 print("Select a grid size:")
@@ -42,3 +44,7 @@ place_agent(world_grid)
 # Visualize the grid with agents and survivors
 visualize_grid(world_grid) 
 
+agent_location = np.where(world_grid == 2)
+agent_location = (agent_location[0][0], agent_location[1][0])
+
+simulate(world_grid, agent_location)
