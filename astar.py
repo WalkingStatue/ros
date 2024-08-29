@@ -13,17 +13,14 @@ class Node:
         return self.position == other.position
 
     def __lt__(self, other):
-        # Primary comparison by f_score
         if self.f == other.f:
-            # Tie-breaker: Prefer nodes with a lower h_score
             return self.h < other.h
         return self.f < other.f
-
 
 def manhattan_distance(node_position, end_position):
     return abs(node_position[0] - end_position[0]) + abs(node_position[1] - end_position[1])
 
-def astar(maze, start, end, allow_diagonal=False):
+def astar(maze, start, end, allow_diagonal=True):
     start_node = Node(None, start)
     end_node = Node(None, end)
 
@@ -34,62 +31,74 @@ def astar(maze, start, end, allow_diagonal=False):
     heapq.heappush(open_list, (start_node.f, start_node))
     open_dict[start_node.position] = start_node.g
 
-    # Define possible movements
+    heuristic_weight = 1.4
+
     move_positions = [(0, -1), (0, 1), (-1, 0), (1, 0)]  # Up, down, left, right
     if allow_diagonal:
         move_positions += [(-1, -1), (-1, 1), (1, -1), (1, 1)]  # Add diagonals
 
     while open_list:
-        # Get the node with the lowest f score
         current_node = heapq.heappop(open_list)[1]
         closed_list[current_node.position[0], current_node.position[1]] = True
 
-        # Generate children (neighboring nodes)
-        children = []
-        for new_position in move_positions:
-            node_position = (current_node.position[0] + new_position[0], current_node.position[1] + new_position[1])
+        if current_node.position == end_node.position:
+            path = []
+            while current_node:
+                path.append(current_node.position)
+                current_node = current_node.parent
+            return path[::-1]  # Return reversed path
 
-            # Check if the new position is within the grid bounds
+        children = []
+        for move in move_positions:
+            node_position = (current_node.position[0] + move[0], current_node.position[1] + move[1])
+
             if not (0 <= node_position[0] < len(maze) and 0 <= node_position[1] < len(maze[0])):
                 continue
 
-            # Check if the new position is walkable (not an obstacle)
-            if maze[node_position[0]][node_position[1]] == 10:
+            if maze[node_position[0]][node_position[1]] == 10:  # Fallen trees are impassable
+                continue
+
+            if closed_list[node_position[0], node_position[1]]:
                 continue
 
             new_node = Node(current_node, node_position)
             children.append(new_node)
 
-            # Early goal check
-            if new_node.position == end_node.position:
-                path = []
-                while new_node is not None:
-                    path.append(new_node.position)
-                    new_node = new_node.parent
-                return path[::-1]  # Return reversed path
+            for child in children:
+                if closed_list[child.position[0], child.position[1]]:
+                    continue
 
-        # Loop through children
-        for child in children:
-            if closed_list[child.position[0], child.position[1]]:
-                continue
+                # Map characters to terrain costs
+                terrain_char = maze[child.position[0]][child.position[1]]
+                if terrain_char == 0:  # Open terrain
+                    terrain_cost = 1
+                elif terrain_char == 5:  # Rubble
+                    terrain_cost = 5
+                elif terrain_char == 3:  # Building
+                    terrain_cost = 3
+                elif terrain_char == 10:  # Fallen tree (impassable)
+                    continue  # Skip this child
+                else:  # Default cost for any other character
+                    terrain_cost = 1
 
-            # Calculate costs for the child node
-            terrain_cost = maze[child.position[0]][child.position[1]]
-            if allow_diagonal and abs(child.position[0] - current_node.position[0]) + abs(child.position[1] - current_node.position[1]) == 2:
-                terrain_cost *= 1.4  # Adjust cost for diagonal movement
+                if allow_diagonal and (abs(move[0]) + abs(move[1])) == 2:
+                    terrain_cost *= 1.4
 
-            child.g = current_node.g + terrain_cost
-            child.h = manhattan_distance(child.position, end_node.position)
-            child.f = child.g + child.h
+                child.g = current_node.g + terrain_cost
+                child.h = manhattan_distance(child.position, end_node.position) * heuristic_weight
+                child.f = child.g + child.h
 
-            # Check if a better path to this child already exists
-            if child.position in open_dict and open_dict[child.position] <= child.g:
-                continue
+                if child.position in open_dict and open_dict[child.position] <= child.g:
+                    continue
 
-            # Add the child to the open list
-            heapq.heappush(open_list, (child.f, child))
-            open_dict[child.position] = child.g
+                heapq.heappush(open_list, (child.f, child))
+                open_dict[child.position] = child.g
 
-    # No path found
+                if child == end_node:
+                    path = []
+                    while child:
+                        path.append(child.position)
+                        child = child.parent
+                    return path[::-1]  # Return reversed path
+
     return None
-

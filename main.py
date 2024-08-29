@@ -48,3 +48,4 @@ agent_location = np.where(world_grid == 2)
 agent_location = (agent_location[0][0], agent_location[1][0])
 
 simulate(world_grid, agent_location)
+
