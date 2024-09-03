@@ -1,5 +1,3 @@
-Here's an updated version of your GitHub README with the additional instructions:
-
 ---
 
 # Rescue Operation Simulator
