@@ -1,5 +1,12 @@
-import heapq
 import numpy as np
+import matplotlib.pyplot as plt
+import heapq
+from matplotlib.colors import ListedColormap, BoundaryNorm
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from matplotlib.colors import ListedColormap
+import matplotlib.patches as mpatches
 
 class Node:
     def __init__(self, parent=None, position=None):
@@ -76,8 +83,6 @@ def astar(maze, start, end, allow_diagonal=True):
                     terrain_cost = 5
                 elif terrain_char == 3:  # Building
                     terrain_cost = 3
-                elif terrain_char in [-1, -2]:  # Survivor or rescued survivor
-                    terrain_cost = 1
                 elif terrain_char == 10:  # Fallen tree (impassable)
                     continue  # Skip this child
                 else:  # Default cost for any other character
@@ -104,3 +109,104 @@ def astar(maze, start, end, allow_diagonal=True):
                     return path[::-1]  # Return reversed path
 
     return None
+    
+def animate_path(grid, path):
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    # Define colors for each type of terrain and state
+    cmap = ListedColormap([
+        'green',    # -2: Rescued survivor
+        'orange',   # -1: Survivor
+        'white',    # 0: Open space
+        'blue',     # 3: Building
+        'gray',     # 5: Rubble
+        'brown'     # 10: Fallen tree
+    ]) 
+
+    bounds = [-2, -1, 0, 3, 5, 10]  
+    norm = plt.Normalize(vmin=-2, vmax=10) 
+
+    ax.imshow(grid, cmap=cmap, norm=norm)
+    
+    # Add static elements (start, end, grid, etc.)
+    ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=0.5)
+    ax.set_xticks([])  
+    ax.set_yticks([])
+
+    # Create custom legend patches for terrain types
+    legend_patches = [
+        mpatches.Patch(color='green', label='Rescued survivor (-2)'),
+        mpatches.Patch(color='orange', label='Survivor (-1)'),
+        mpatches.Patch(color='white', label='Open space (0)'),
+        mpatches.Patch(color='blue', label='Building (3)'),
+        mpatches.Patch(color='gray', label='Rubble (5)'),
+        mpatches.Patch(color='brown', label='Fallen tree (10)'),
+        mpatches.Patch(color='yellow', label='Path'),
+        mpatches.Patch(color='magenta', label='Start'),
+        mpatches.Patch(color='cyan', label='End')
+    ]
+    
+    # Add a legend with patches on the side
+    ax.legend(handles=legend_patches, loc='center left', bbox_to_anchor=(1, 0.5), fontsize=12)
+
+    # Initialize the path line and start/end markers
+    line, = ax.plot([], [], marker='o', color='yellow', linestyle='-', linewidth=3, markersize=8)
+    start_marker, = ax.plot([], [], marker='o', color='magenta', markersize=12)
+    end_marker, = ax.plot([], [], marker='x', color='cyan', markersize=12)
+
+    def init():
+        line.set_data([], [])
+        start_marker.set_data([], [])
+        end_marker.set_data([], [])
+        return line, start_marker, end_marker
+
+    def update(frame):
+        xdata, ydata = zip(*path[:frame + 1])
+        line.set_data(ydata, xdata)
+
+        if frame == 0:
+            start_marker.set_data(ydata[0], xdata[0])
+        elif frame == len(path) - 1:
+            end_marker.set_data(ydata[-1], xdata[-1])
+
+        return line, start_marker, end_marker
+
+    ani = FuncAnimation(fig, update, frames=len(path), init_func=init, blit=True, interval=500, repeat=False)
+
+    plt.title('A* Path Visualization (Animated)', fontsize=16, pad=20)
+    plt.show()
+
+
+def test_astar_with_visualization():
+    start = (0, 0)
+    survivors = [(9, 9)]
+
+    grid = np.array([
+    [0,  5,  0, 10, 0,  5,  3,  0,  0, 10],
+    [0,  5,  0,  0, 0, 10,  5,  3,  0,  0],
+    [0, 10, 0,  5, 3,  0,  5,  5, 10, 10],
+    [0,  3, 0, 10, 5, 10,  5,  0,  0, 10],
+    [10, 5, 0,  5, 5,  0, 10,  3, 10,  0],
+    [10, 5, 0, 10, 0,  0, 10,  0, 10,  0],
+    [0,  0, 0,  5, 10, 10,  0,  0, 10,  0],
+    [5,  0, 5,  0,  10, 10,  5, 10, 10,  0],
+    [0, 10, 5,  3,  5,  0,  5,  0, 0,  0],
+    [0,  0, 10,  0,  5, 10,  5,  10, 0, -1] 
+])
+
+    for i, goal in enumerate(survivors):
+        print(f"Start position: {start}")
+        print(f"Goal position (survivor): {goal}")
+
+        path = astar(grid, start, goal, allow_diagonal=True)
+
+        print(f"A* Path to survivor {i+1}: {path}")
+
+        if path:
+            # Only visualize the path, not the initial or final grid states
+            animate_path(grid, path)
+            start = goal 
+            grid[goal] = -2 
+
+if __name__ == "__main__":
+    test_astar_with_visualization()
