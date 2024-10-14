@@ -10,6 +10,7 @@ __pycache__/
 
 # Ignore virtual environment directory
 rescue_env/
+myenv/
 
 # C extensions
 *.so

@@ -1,24 +1,27 @@
 import numpy as np
 import random
+from agent import ObstacleType
 
 def create_grid(rows, cols):
     return np.zeros((rows, cols))
 
 def place_obstacles(grid, num_obstacles):
-    for _ in range(num_obstacles):
-        while True:
-            obstacle_type = random.choice(["rubble", "fallen tree", "building"])
-            row = random.randint(0, len(grid) - 1)
-            col = random.randint(0, len(grid[0]) - 1)
+    placed_obstacles = 0
+    attempts = 0
+    max_attempts = 1000 # Increased max attempts for robustness
 
-            if not creates_maze(grid, row, col):
-                if obstacle_type == "rubble":
-                    grid[row, col] = 5
-                elif obstacle_type == "fallen tree":
-                    grid[row, col] = 10
-                elif obstacle_type == "building":
-                    grid[row, col] = 3
-                break
+    while placed_obstacles < num_obstacles and attempts < max_attempts:
+        row = random.randint(0, len(grid) - 1)
+        col = random.randint(0, len(grid[0]) - 1)
+        obstacle_type = random.choice(list(ObstacleType))
+        if grid[row, col] == 0:
+            grid[row, col] = obstacle_type.value
+            placed_obstacles += 1
+        attempts += 1
+
+    if placed_obstacles < num_obstacles:
+        print(f"Warning: Only {placed_obstacles} out of {num_obstacles} obstacles placed after {max_attempts} attempts. Consider increasing grid size or reducing obstacle count.")
+
 
 def flood_fill(grid, row, col, visited):
     if row < 0 or row >= len(grid) or col < 0 or col >= len(grid[0]):

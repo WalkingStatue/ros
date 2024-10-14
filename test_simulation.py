@@ -1,42 +1,43 @@
+import unittest
 import numpy as np
-from simulation import simulate  # Ensure this import matches your module structure
+from grid import create_grid, place_obstacles
+from agent import place_agent, place_survivors
+from simulation import simulate
+from agent import ObstacleType
 
-import numpy as np
-from astar import astar
+class TestRescueSimulation(unittest.TestCase):
 
-def test_simulation_with_obstacles():
-    # Create a test grid with more obstacles
-    grid = np.array([
-    [0,  5,  0, 10, 0,  5,  3,  0,  0, 10],
-    [0,  5,  0,  0, 0, 10,  5,  3,  0,  0],
-    [0, 10, 0,  5, 3,  0,  5,  5, 10, 10],
-    [0,  3, 0, 10, 5, 10,  5,  0,  0, 10],
-    [10, 5, 0,  5, 5,  0, 10,  3, 10,  0],
-    [10, 5, 0, 10, 0,  0, 10,  0, 10,  0],
-    [0,  0, 0,  5, 10, 10,  0,  0, 10,  0],
-    [5,  0, 5,  0,  0, 10,  5, 10, 0,  0],
-    [0, 10, 5,  3,  5,  0,  5,  0, 0,  0],
-    [0,  0, 10,  0,  5, 10,  0,  0, 0, -1]  # Survivor here at (9, 9)
-])
+    def test_obstacle_placement(self):
+        grid = create_grid(10, 10)
+        place_obstacles(grid, 5)
+        self.assertGreater(np.count_nonzero(grid), 0)  # Check that obstacles were placed
 
-    # Place survivors (-1) and agent (2) on the grid
-    agent_location = (0, 0)
-    grid[agent_location] = 2  # Agent at (0, 0)
+    def test_survivor_placement(self):
+        grid = create_grid(10, 10)
+        place_survivors(grid, 3)
+        self.assertEqual(np.count_nonzero(grid == -1), 3)  # Check that 3 survivors were placed
 
-    print("Initial Grid State:")
-    print_grid(grid)  # Print initial state for verification
+    def test_pathfinding_with_obstacles(self):
+        grid = create_grid(10, 10)
+        place_obstacles(grid, 2) #Place 2 obstacles
+        place_survivors(grid,1) #Place 1 survivor
+        place_agent(grid)
+        survivors_before = np.count_nonzero(grid==-1)
+        simulate(grid,(0,0))
+        survivors_after = np.count_nonzero(grid==-1)
+        self.assertLess(survivors_after, survivors_before) #Check that at least one survivor was rescued
 
-    # Run the simulation
-    print("\nRunning Simulation...")
-    simulate(grid, agent_location)
 
-    print("\nFinal Grid State:")
-    print_grid(grid)  # Print final state for verification
+    def test_no_path(self):
+        grid = create_grid(10,10)
+        place_obstacles(grid, 50) #Place many obstacles
+        place_survivors(grid,1) #Place 1 survivor
+        place_agent(grid)
+        survivors_before = np.count_nonzero(grid==-1)
+        simulate(grid,(0,0))
+        survivors_after = np.count_nonzero(grid==-1)
+        self.assertEqual(survivors_after, survivors_before) #Check that no survivors were rescued
 
-    # Additional checks can be performed here, e.g., checking the number of rescued survivors
 
-def print_grid(grid):
-    print("\n".join(" ".join(str(int(cell)) for cell in row) for row in grid))
-
-if __name__ == "__main__":
-    test_simulation_with_obstacles()
+if __name__ == '__main__':
+    unittest.main()
