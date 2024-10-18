@@ -3,7 +3,7 @@ import numpy as np
 from astar import astar
 from visualize import visualize_grid
 
-def simulate(grid, agent_location):
+def run_simulation(grid, agent_location): #Renamed function
     survivors = np.argwhere(grid == -1)
     total_time = 0
 
