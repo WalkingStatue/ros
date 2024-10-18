@@ -3,8 +3,18 @@ import numpy as np
 from astar import astar
 from visualize import visualize_grid
 
-def run_simulation(grid, agent_location): #Renamed function
+def run_simulation(grid, agent_location):
+    obstacles = np.argwhere(grid > 0)
     survivors = np.argwhere(grid == -1)
+    #Removed agents = np.argwhere(grid == 2)
+
+    #Verification
+    if len(obstacles) == 0:
+        raise ValueError("There must be at least one obstacle in the grid.")
+    if len(survivors) == 0:
+        raise ValueError("There must be at least one survivor in the grid.")
+
+
     total_time = 0
 
     while len(survivors) > 0:

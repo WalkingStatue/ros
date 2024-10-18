@@ -26,17 +26,20 @@ def load_images(image_dir):
             print(f"Warning: No images found for item type: {item_type.name}")
     return item_images
 
+
+
 # Function to create the grid UI
 def create_grid_ui(parent, grid):
     cell_size = 60
     grid_buttons = {}
     for row in range(len(grid)):
         for col in range(len(grid[0])):
-            button = tk.Button(parent, width=cell_size // 10, height=cell_size // 20, bg="white", relief="flat")
+            button = tk.Button(parent, width=cell_size // 10, height=cell_size // 20, bg="white", relief="flat", command=lambda r=row, c=col: select_grid(r,c))
             button.grid(row=row, column=col, sticky="nsew")
             button.bind("<Button-3>", lambda event, r=row, c=col: remove_item(event, r, c))
             button.bind("<Double-Button-1>", lambda event, r=row, c=col: replace_item(event, r, c))
             grid_buttons[(row, col)] = button
+
     return grid_buttons
 
 # Function to create the sidebar with draggable items
@@ -53,19 +56,34 @@ def create_sidebar(sidebar_frame, item_images):
 
 # Functions for placing and removing items from the grid
 def place_item(item_type, image, row, col):
+    global agent_location
     print(f"Placing item of type: {item_type} at {row}, {col} - grid_buttons key: {(row,col)}")
     grid[row, col] = item_type.value
     try:
         grid_buttons[(row, col)].config(bg="black", image=image)
+        if item_type == AgentType.AGENT:
+            agent_location = (row, col)
     except KeyError as e:
         print(f"KeyError: {e} - grid_buttons dictionary does not contain key for this location.")
 
 def remove_item(event, row, col):
+    global agent_location
     grid[row, col] = 0
     grid_buttons[(row, col)].config(bg="white", image="")
+    if grid[row, col] == AgentType.AGENT.value:
+        agent_location = None
 
 def replace_item(event, row, col):
     remove_item(event, row, col)
+
+#Selecting grid
+selected_grid = None
+def select_grid(row, col):
+    global selected_grid
+    if selected_grid:
+        grid_buttons[selected_grid].config(bg="white")
+    selected_grid = (row, col)
+    grid_buttons[selected_grid].config(bg="lightblue")
 
 # Drag-and-drop functionality
 def start_drag(event, item_type, image):
@@ -73,44 +91,20 @@ def start_drag(event, item_type, image):
     dragged_item = (item_type, image)
 
 def stop_drag(event):
-    global dragged_item, is_fullscreen
-    if dragged_item:
+    global dragged_item, selected_grid
+    if dragged_item and selected_grid:
         item_type, image = dragged_item
-        try:
-            x = event.x_root - grid_frame.winfo_rootx()
-            y = event.y_root - grid_frame.winfo_rooty()
-            print(f"Raw Mouse Coordinates: x={x}, y={y}")
-
-            # Adjust y coordinate for canvas scroll position
-            canvas_y_offset = sidebar.yview()[0] * sidebar_inner.winfo_height()
-            y -= canvas_y_offset
-
-            # Adjust for fullscreen (you'll need to fine-tune these values)
-            if is_fullscreen:
-                x -= 5
-                y -= 30
-
-            # Adjust for button size
-            button_width = grid_buttons[(0,0)].winfo_width()
-            button_height = grid_buttons[(0,0)].winfo_height()
-            x -= button_width // 2
-            y -= button_height // 2
-
-            col = int(x // cell_size)
-            row = int(y // cell_size)
-            print(f"Calculated Grid Coordinates: row={row}, col={col}")
-
-            if 0 <= row < len(grid) and 0 <= col < len(grid[0]):
-                place_item(item_type, image, row, col)
-            else:
-                print("Error: Drop outside grid boundaries")
-        except Exception as e:
-            print(f"An error occurred: {e}")
+        row, col = selected_grid
+        place_item(item_type, image, row, col)
+        selected_grid = None
         dragged_item = None
 
 # Function to run the simulation
-def run_sim():
-    run_simulation(grid)
+def run_sim(): 
+    if agent_location is None:
+        print("Error: Agent location not set. Please place the agent.")
+        return
+    run_simulation(grid, agent_location)
 
 # Function to handle window closing
 def on_closing(root):
@@ -157,6 +151,7 @@ item_images = load_images(image_dir)  # Load images here
 # Create the grid UI
 grid_frame = tk.Frame(root)
 grid_frame.grid(row=0, column=1, sticky="nsew")
+grid_frame.bind("<ButtonRelease-1>", stop_drag)  # Bind to the grid frame
 grid_buttons = create_grid_ui(grid_frame, grid)
 
 # Sidebar for item selection with a proper frame for scrollbar
