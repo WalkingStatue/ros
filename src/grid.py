@@ -1,6 +1,6 @@
 import numpy as np
 import random
-from agent import ObstacleType
+from .agent import ObstacleType
 
 def create_grid(rows, cols):
     return np.zeros((rows, cols))
