@@ -7,6 +7,7 @@ import glob
 from grid import create_grid, ObstacleType, AgentType, SurvivorType
 from simulation import run_simulation
 
+
 # Function to load images
 def load_images(image_dir):
     item_images = {}
