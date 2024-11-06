@@ -3,10 +3,13 @@ import numpy as np
 import os
 from PIL import Image, ImageTk
 import glob
-
+import logging
+from tkinter import messagebox, StringVar #Import StringVar
 from grid import create_grid, ObstacleType, AgentType, SurvivorType
 from simulation import run_simulation
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Function to load images
 def load_images(image_dir):
@@ -20,13 +23,14 @@ def load_images(image_dir):
                     img = img.resize((50, 50), Image.Resampling.LANCZOS)
                     item_images[item_type].append(ImageTk.PhotoImage(img))
                 else:
-                    print(f"Error: Could not load image {image_path}")
+                    logging.error(f"Error: Could not load image {image_path}")
             except (IOError, OSError) as e:
-                print(f"Error loading image {image_path}: {e}")
+                logging.error(f"Error loading image {image_path}: {e}")
+                messagebox.showerror("Image Load Error", f"Could not load image {image_path}: {e}")
+                return None #added to stop execution if image loading fails
         if not item_images[item_type]:
-            print(f"Warning: No images found for item type: {item_type.name}")
+            logging.warning(f"Warning: No images found for item type: {item_type.name}")
     return item_images
-
 
 
 # Function to create the grid UI
@@ -35,16 +39,18 @@ def create_grid_ui(parent, grid):
     grid_buttons = {}
     for row in range(len(grid)):
         for col in range(len(grid[0])):
-            button = tk.Button(parent, width=cell_size // 10, height=cell_size // 20, bg="white", relief="flat", command=lambda r=row, c=col: select_grid(r,c))
-            button.grid(row=row, column=col, sticky="nsew")
+            button = tk.Button(parent, width=cell_size // 10, height=cell_size // 20, bg="white", relief="flat")
+            button.grid(row=row, column=col, padx=2, pady=2, sticky="nsew") # Added padx and pady
             button.bind("<Button-3>", lambda event, r=row, c=col: remove_item(event, r, c))
             button.bind("<Double-Button-1>", lambda event, r=row, c=col: replace_item(event, r, c))
-            grid_buttons[(row, col)] = button
-
+            button.bind("<Button-1>", lambda event, r=row, c=col, b=button: select_grid(event, r, c, b)) #added button object to lambda
+            grid_buttons[(row, col)] = button # Use coordinates as key
     return grid_buttons
 
 # Function to create the sidebar with draggable items
 def create_sidebar(sidebar_frame, item_images):
+    if item_images is None:
+        return
     for item_type, images in item_images.items():
         item_frame = tk.LabelFrame(sidebar_frame, text=item_type.name, padx=10, pady=5)
         item_frame.pack(pady=10)
@@ -58,14 +64,12 @@ def create_sidebar(sidebar_frame, item_images):
 # Functions for placing and removing items from the grid
 def place_item(item_type, image, row, col):
     global agent_location
-    print(f"Placing item of type: {item_type} at {row}, {col} - grid_buttons key: {(row,col)}")
+    logging.info(f"Placing item of type: {item_type} at {row}, {col} - grid_buttons key: {(row,col)}")
     grid[row, col] = item_type.value
-    try:
-        grid_buttons[(row, col)].config(bg="black", image=image)
-        if item_type == AgentType.AGENT:
-            agent_location = (row, col)
-    except KeyError as e:
-        print(f"KeyError: {e} - grid_buttons dictionary does not contain key for this location.")
+    grid_buttons[(row, col)].config(bg="black", image=image)
+    if item_type == AgentType.AGENT:
+        agent_location = (row, col)
+
 
 def remove_item(event, row, col):
     global agent_location
@@ -74,17 +78,18 @@ def remove_item(event, row, col):
     if grid[row, col] == AgentType.AGENT.value:
         agent_location = None
 
+
 def replace_item(event, row, col):
     remove_item(event, row, col)
 
 #Selecting grid
 selected_grid = None
-def select_grid(row, col):
+def select_grid(event, row, col, button): #added button object as parameter
     global selected_grid
     if selected_grid:
-        grid_buttons[selected_grid].config(bg="white")
-    selected_grid = (row, col)
-    grid_buttons[selected_grid].config(bg="lightblue")
+        selected_grid.config(bg="white") # Use the button object directly
+    selected_grid = button # Use the button object directly
+    selected_grid.config(bg="lightblue")
 
 # Drag-and-drop functionality
 def start_drag(event, item_type, image):
@@ -95,21 +100,43 @@ def stop_drag(event):
     global dragged_item, selected_grid
     if dragged_item and selected_grid:
         item_type, image = dragged_item
-        row, col = selected_grid
-        place_item(item_type, image, row, col)
+        try:
+            row, col = (selected_grid.grid_info()["row"], selected_grid.grid_info()["column"])
+            place_item(item_type, image, row, col)
+        except KeyError:
+            logging.error("Error: Could not find button coordinates in grid_buttons.")
+            messagebox.showerror("Error", "Could not place item. Button coordinates not found.")
         selected_grid = None
         dragged_item = None
 
 # Function to run the simulation
-def run_sim(): 
+agent_location = None # Initialize agent_location
+def run_sim():
+    global item_images, agent_location
     if agent_location is None:
-        print("Error: Agent location not set. Please place the agent.")
+        logging.error("Error: Agent location not set. Please place the agent.")
+        messagebox.showerror("Simulation Error", "Agent location not set.")
         return
-    run_simulation(grid, agent_location)
+    if item_images is None:
+        messagebox.showerror("Image Error", "Images could not be loaded.")
+        return
+    status_text.set("Simulation running...")
+    root.update() #update the UI to show the status bar message
+    try:
+        run_simulation(grid, agent_location, grid_buttons, root, item_images, status_text)
+    except Exception as e:
+        logging.exception(f"An unexpected error occurred during simulation: {e}")
+        messagebox.showerror("Simulation Error", f"An unexpected error occurred: {e}")
+    finally:
+        status_text.set("Simulation finished.")
+
+def save_grid_state():
+    logging.info(f"Grid state on closing: \n{np.array_str(grid)}")
+    # Add your grid saving logic here if needed.  For example, you could save to a file.
 
 # Function to handle window closing
 def on_closing(root):
-    print(np.array_str(grid))
+    save_grid_state()
     root.destroy()
 
 # Function to toggle fullscreen
@@ -117,6 +144,7 @@ def toggle_fullscreen():
     global is_fullscreen
     is_fullscreen = not is_fullscreen
     root.attributes("-fullscreen", is_fullscreen)
+
 
 # Initialize the main window
 root = tk.Tk()
@@ -147,12 +175,15 @@ item_image_paths = {
 }
 
 # Load item images
-item_images = load_images(image_dir)  # Load images here
+item_images = load_images(image_dir)
+if item_images is None:
+    root.destroy()
+    exit()
 
 # Create the grid UI
 grid_frame = tk.Frame(root)
 grid_frame.grid(row=0, column=1, sticky="nsew")
-grid_frame.bind("<ButtonRelease-1>", stop_drag)  # Bind to the grid frame
+grid_frame.bind("<ButtonRelease-1>", stop_drag)
 grid_buttons = create_grid_ui(grid_frame, grid)
 
 # Sidebar for item selection with a proper frame for scrollbar
@@ -180,6 +211,11 @@ sidebar.config(scrollregion=sidebar.bbox("all"))
 run_button = tk.Button(root, text="Run Simulation", command=run_sim, bg="#4CAF50", fg="white", font=("Arial", 12, "bold"))
 run_button.grid(row=1, column=0, columnspan=2, pady=10)
 
+# Status bar
+status_text = StringVar()
+status_bar = tk.Label(root, textvariable=status_text, bd=1, relief=tk.SUNKEN, anchor=tk.W)
+status_bar.grid(row=2, column=0, columnspan=2, sticky="ew")
+
 # Configure the window layout
 root.columnconfigure(1, weight=1)
 root.rowconfigure(0, weight=1)
@@ -187,6 +223,7 @@ root.rowconfigure(0, weight=1)
 # Set weight to 0 for the first column and first row (prevents stretching)
 root.columnconfigure(0, weight=0)
 root.rowconfigure(1, weight=0)
+root.rowconfigure(2, weight=0) #added for status bar
 
 # Handle window close event
 root.protocol("WM_DELETE_WINDOW", lambda: on_closing(root))
