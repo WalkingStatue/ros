@@ -29,7 +29,7 @@ The project is organized as follows:
 
 ## Installation
 
-1. **Clone the Repository:** `git clone [\[repository_url\]](https://github.com/WalkingStatue/rso)`
+1. **Clone the Repository:** `git clone https://github.com/WalkingStatue/rso.git`
 2. **Install Dependencies:** `pip install -r requirements.txt`
 
 ## Usage
