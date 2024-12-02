@@ -22,9 +22,11 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
 
     logging.info("Simulation started.")
     total_time = 0
+    rescued_survivors = 0
+    unreachable_survivors = 0
 
     def animate_step(path, survivor_location, step_index, item_images):
-        nonlocal agent_location, survivors
+        nonlocal agent_location, survivors, rescued_survivors
         for step_index in range(len(path)):
             step = path[step_index]
             if step != survivor_location:
@@ -51,12 +53,14 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
                     logging.error(f"IndexError: Invalid button index {step}")
                     return
                 logging.info(f"Survivor at {step} rescued.")
+                rescued_survivors += 1
                 # Remove the rescued survivor from the survivors array
-                survivors = np.array([s for s in survivors if not np.array_equal(s, survivor)])
+                survivors = np.array([s for s in survivors if not np.array_equal(s, step)])
                 root.update()
                 break # Exit the loop after rescuing a survivor
 
     while survivors.size > 0:
+        path_found_for_any_survivor = False
         for survivor_index in range(survivors.shape[0]):
             survivor = survivors[survivor_index]
             survivor_location = tuple(survivor)
@@ -64,21 +68,29 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
             if grid[survivor_location] == SurvivorType.SURVIVOR.value:
                 path = astar(grid, agent_location, survivor_location, allow_diagonal=True)
                 if path:
+                    path_found_for_any_survivor = True
                     logging.info(f"Found path from {agent_location} to {survivor_location}: {path}")
                     animate_step(path, survivor_location, 0, item_images)
                 else:
                     logging.error(f"No path found to survivor at {survivor_location}. Giving up on this survivor.")
-                    break
-            else:
-                logging.info(f"Survivor at {survivor_location} already rescued.")
+                    unreachable_survivors += 1
+                    survivors = np.array([s for s in survivors if not np.array_equal(s, survivor)]) #remove survivor if no path found
 
         if survivors.size == 0:
-            logging.info("All survivors have been rescued.")
-            messagebox.showinfo("Simulation Complete", "All survivors found!")
+            summary_message = f"Simulation complete.\n{rescued_survivors} survivors rescued."
+            if unreachable_survivors > 0:
+                summary_message += f"\nNo path available for {unreachable_survivors} survivor(s)."
+            messagebox.showinfo("Simulation Complete", summary_message)
             # Reset the grid here.  This requires a function to reset the grid in main.py
             reset_grid(grid, grid_buttons) #call reset_grid function from main.py
             status_text.set("Simulation finished.")
-        else:
-            logging.info(f"Remaining survivors to be rescued: {survivors}")
+            break #added break to exit the while loop if no survivors left
+        elif not path_found_for_any_survivor:
+            summary_message = f"Simulation complete.\n{rescued_survivors} survivors rescued."
+            if unreachable_survivors > 0:
+                summary_message += f"\nNo path available for {unreachable_survivors} survivor(s)."
+            messagebox.showinfo("Simulation Complete", summary_message)
+            status_text.set("Simulation finished.")
+            break #added break to exit the while loop if no path found for any survivors
 
     logging.info("Simulation finished.")

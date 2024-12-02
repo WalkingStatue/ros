@@ -4,9 +4,19 @@ import os
 from PIL import Image, ImageTk
 import glob
 import logging
-from tkinter import messagebox, StringVar #Import StringVar
-from grid import create_grid, ObstacleType, AgentType, SurvivorType
-from simulation import run_simulation
+from tkinter import messagebox, StringVar
+try:
+    from grid import create_grid, ObstacleType, AgentType, SurvivorType
+except ImportError as e:
+    messagebox.showerror("Import Error", f"Could not import from 'grid.py': {e}")
+    exit() #added to stop execution if import fails
+
+try:
+    from simulation import run_simulation
+except ImportError as e:
+    messagebox.showerror("Import Error", f"Could not import from 'simulation.py': {e}")
+    exit() #added to stop execution if import fails
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -27,7 +37,7 @@ def load_images(image_dir):
             except (IOError, OSError) as e:
                 logging.error(f"Error loading image {image_path}: {e}")
                 messagebox.showerror("Image Load Error", f"Could not load image {image_path}: {e}")
-                return None #added to stop execution if image loading fails
+                return None
         if not item_images[item_type]:
             logging.warning(f"Warning: No images found for item type: {item_type.name}")
     return item_images
@@ -40,11 +50,11 @@ def create_grid_ui(parent, grid):
     for row in range(len(grid)):
         for col in range(len(grid[0])):
             button = tk.Button(parent, width=cell_size // 10, height=cell_size // 20, bg="white", relief="flat")
-            button.grid(row=row, column=col, padx=2, pady=2, sticky="nsew") # Added padx and pady
+            button.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
             button.bind("<Button-3>", lambda event, r=row, c=col: remove_item(event, r, c))
             button.bind("<Double-Button-1>", lambda event, r=row, c=col: replace_item(event, r, c))
-            button.bind("<Button-1>", lambda event, r=row, c=col, b=button: select_grid(event, r, c, b)) #added button object to lambda
-            grid_buttons[(row, col)] = button # Use coordinates as key
+            button.bind("<Button-1>", lambda event, r=row, c=col, b=button: select_grid(event, r, c, b))
+            grid_buttons[(row, col)] = button
     return grid_buttons
 
 # Function to create the sidebar with draggable items
@@ -84,11 +94,11 @@ def replace_item(event, row, col):
 
 #Selecting grid
 selected_grid = None
-def select_grid(event, row, col, button): #added button object as parameter
+def select_grid(event, row, col, button):
     global selected_grid
     if selected_grid:
-        selected_grid.config(bg="white") # Use the button object directly
-    selected_grid = button # Use the button object directly
+        selected_grid.config(bg="white")
+    selected_grid = button
     selected_grid.config(bg="lightblue")
 
 # Drag-and-drop functionality
@@ -110,7 +120,7 @@ def stop_drag(event):
         dragged_item = None
 
 # Function to run the simulation
-agent_location = None # Initialize agent_location
+agent_location = None
 def run_sim():
     global item_images, agent_location
     if agent_location is None:
@@ -121,7 +131,7 @@ def run_sim():
         messagebox.showerror("Image Error", "Images could not be loaded.")
         return
     status_text.set("Simulation running...")
-    root.update() #update the UI to show the status bar message
+    root.update()
     try:
         run_simulation(grid, agent_location, grid_buttons, root, item_images, status_text)
     except Exception as e:
@@ -223,7 +233,7 @@ root.rowconfigure(0, weight=1)
 # Set weight to 0 for the first column and first row (prevents stretching)
 root.columnconfigure(0, weight=0)
 root.rowconfigure(1, weight=0)
-root.rowconfigure(2, weight=0) #added for status bar
+root.rowconfigure(2, weight=0)
 
 # Handle window close event
 root.protocol("WM_DELETE_WINDOW", lambda: on_closing(root))
