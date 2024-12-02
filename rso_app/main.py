@@ -5,17 +5,18 @@ from PIL import Image, ImageTk
 import glob
 import logging
 from tkinter import messagebox, StringVar
+
 try:
     from grid import create_grid, ObstacleType, AgentType, SurvivorType
 except ImportError as e:
     messagebox.showerror("Import Error", f"Could not import from 'grid.py': {e}")
-    exit() #added to stop execution if import fails
+    exit()
 
 try:
     from simulation import run_simulation
 except ImportError as e:
     messagebox.showerror("Import Error", f"Could not import from 'simulation.py': {e}")
-    exit() #added to stop execution if import fails
+    exit()
 
 
 # Configure logging
@@ -159,18 +160,50 @@ def toggle_fullscreen():
 # Initialize the main window
 root = tk.Tk()
 root.title("Rescue Operation Simulator")
-grid_size = 10
-cell_size = 60
-canvas_width = grid_size * cell_size
-canvas_height = grid_size * cell_size
-root.geometry(f"{canvas_width + 250}x{canvas_height + 100}")
 
-# Create the grid
-grid = create_grid(grid_size, grid_size)
+# Grid size selection
+grid_size_options = [5, 10, 12]
+selected_grid_size = tk.IntVar(value=10)  # Default grid size
+
+def update_grid_size():
+    global grid, grid_buttons, canvas_width, canvas_height, grid_size, cell_size, grid_frame
+    grid_size = selected_grid_size.get()
+    grid = create_grid(grid_size, grid_size)
+    cell_size = 60
+    canvas_width = grid_size * cell_size
+    canvas_height = grid_size * cell_size
+    canvas.config(width=canvas_width, height=canvas_height)
+    if 'grid_frame' in locals():
+        grid_frame.destroy()
+    grid_frame = tk.Frame(root)
+    grid_frame.grid(row=0, column=1, sticky="nsew")
+    grid_frame.bind("<ButtonRelease-1>", stop_drag)
+    grid_buttons = create_grid_ui(grid_frame, grid)
+    sidebar.config(height=canvas_height)
+    right_sidebar.config(height=canvas_height)
+    root.geometry(f"{canvas_width + 450}x{canvas_height + 100}")
+    root.update()
 
 # Create the canvas for the grid
-canvas = tk.Canvas(root, width=canvas_width, height=canvas_height)
+canvas = tk.Canvas(root, width=10*60, height=10*60) # Initialize canvas with default size
 canvas.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+
+
+# Sidebar for item selection with a proper frame for scrollbar
+sidebar_frame = tk.Frame(root)
+sidebar_frame.grid(row=0, column=0, sticky="ns", padx=10)
+
+# Scrollable sidebar
+sidebar = tk.Canvas(sidebar_frame, width=200, height=10*60, relief="sunken", borderwidth=2) # Initialize with default height
+sidebar.pack(side="left", fill="both", expand=True)
+
+scrollbar = tk.Scrollbar(sidebar_frame, orient="vertical", command=sidebar.yview)
+scrollbar.pack(side="right", fill="y")
+sidebar.config(yscrollcommand=scrollbar.set)
+
+# Create item selection in the sidebar
+sidebar_inner = tk.Frame(sidebar)
+sidebar.create_window((0, 0), window=sidebar_inner, anchor="nw")
 
 # Directory for images
 image_dir = os.path.join(os.path.dirname(__file__), "images")
@@ -190,41 +223,50 @@ if item_images is None:
     root.destroy()
     exit()
 
-# Create the grid UI
-grid_frame = tk.Frame(root)
-grid_frame.grid(row=0, column=1, sticky="nsew")
-grid_frame.bind("<ButtonRelease-1>", stop_drag)
-grid_buttons = create_grid_ui(grid_frame, grid)
-
-# Sidebar for item selection with a proper frame for scrollbar
-sidebar_frame = tk.Frame(root)
-sidebar_frame.grid(row=0, column=0, sticky="ns", padx=10)
-
-# Scrollable sidebar
-sidebar = tk.Canvas(sidebar_frame, width=200, height=canvas_height, relief="sunken", borderwidth=2)
-sidebar.pack(side="left", fill="both", expand=True)
-
-scrollbar = tk.Scrollbar(sidebar_frame, orient="vertical", command=sidebar.yview)
-scrollbar.pack(side="right", fill="y")
-sidebar.config(yscrollcommand=scrollbar.set)
-
-# Create item selection in the sidebar
-sidebar_inner = tk.Frame(sidebar)
-sidebar.create_window((0, 0), window=sidebar_inner, anchor="nw")
 create_sidebar(sidebar_inner, item_images)
 
 # Ensure the sidebar's inner frame resizes and scrolls properly
 sidebar_inner.update_idletasks()
 sidebar.config(scrollregion=sidebar.bbox("all"))
 
+
+# Right sidebar for grid size selection
+right_sidebar_frame = tk.Frame(root)
+right_sidebar_frame.grid(row=0, column=2, sticky="ns", padx=10)
+
+right_sidebar = tk.Canvas(right_sidebar_frame, width=200, height=10*60, relief="sunken", borderwidth=2)
+right_sidebar.pack(side="left", fill="both", expand=True)
+
+right_scrollbar = tk.Scrollbar(right_sidebar_frame, orient="vertical", command=right_sidebar.yview)
+right_scrollbar.pack(side="right", fill="y")
+right_sidebar.config(yscrollcommand=right_scrollbar.set)
+
+right_sidebar_inner = tk.Frame(right_sidebar)
+right_sidebar.create_window((0, 0), window=right_sidebar_inner, anchor="nw")
+
+def create_grid_size_selector(parent):
+    grid_size_title = tk.Label(parent, text="Grid Size", font=("Arial", 14, "bold"), pady=10)
+    grid_size_title.grid(row=0, column=0, columnspan=2, sticky="w")
+
+    row_num = 1
+    for size in grid_size_options:
+        radio_button = tk.Radiobutton(parent, text=f"{size}x{size}", variable=selected_grid_size, value=size, command=update_grid_size)
+        radio_button.grid(row=row_num, column=0, sticky="w")
+        row_num += 1
+
+# Grid size selector in right sidebar
+create_grid_size_selector(right_sidebar_inner)
+
+update_grid_size() #call update_grid_size to initialize grid_size
+
 # Run Simulation button
 run_button = tk.Button(root, text="Run Simulation", command=run_sim, bg="#4CAF50", fg="white", font=("Arial", 12, "bold"))
-run_button.grid(row=1, column=0, columnspan=2, pady=10)
+run_button.grid(row=1, column=0, columnspan=3, pady=10)
 
 # Status bar
 status_text = StringVar()
 status_bar = tk.Label(root, textvariable=status_text, bd=1, relief=tk.SUNKEN, anchor=tk.W)
-status_bar.grid(row=2, column=0, columnspan=2, sticky="ew")
+status_bar.grid(row=2, column=0, columnspan=3, sticky="ew")
 
 # Configure the window layout
 root.columnconfigure(1, weight=1)
@@ -232,8 +274,11 @@ root.rowconfigure(0, weight=1)
 
 # Set weight to 0 for the first column and first row (prevents stretching)
 root.columnconfigure(0, weight=0)
+root.columnconfigure(2, weight=0)
 root.rowconfigure(1, weight=0)
 root.rowconfigure(2, weight=0)
+root.rowconfigure(3, weight=0)
+
 
 # Handle window close event
 root.protocol("WM_DELETE_WINDOW", lambda: on_closing(root))
