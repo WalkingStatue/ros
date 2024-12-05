@@ -1,5 +1,6 @@
 import heapq
 import numpy as np
+import math
 
 class Node:
     def __init__(self, parent=None, position=None):
@@ -20,6 +21,9 @@ class Node:
 def manhattan_distance(node_position, end_position):
     return abs(node_position[0] - end_position[0]) + abs(node_position[1] - end_position[1])
 
+def euclidean_distance(node_position, end_position):
+    return math.sqrt((node_position[0] - end_position[0])**2 + (node_position[1] - end_position[1])**2)
+
 def astar(maze, start, end, allow_diagonal=False):
     start_node = Node(None, start)
     end_node = Node(None, end)
@@ -31,7 +35,7 @@ def astar(maze, start, end, allow_diagonal=False):
     heapq.heappush(open_list, (start_node.f, start_node))
     open_dict[start_node.position] = start_node.g
 
-    heuristic_weight = 1.4
+    heuristic_weight = 1.0
 
     move_positions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
     #if allow_diagonal:
@@ -89,7 +93,7 @@ def astar(maze, start, end, allow_diagonal=False):
             #    terrain_cost *= 1.4
 
             child.g = current_node.g + terrain_cost
-            child.h = manhattan_distance(child.position, end_node.position) * heuristic_weight
+            child.h = manhattan_distance(child.position, end_node.position)
             child.f = child.g + child.h
 
             if child.position in open_dict and open_dict[child.position] <= child.g:

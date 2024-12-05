@@ -63,16 +63,24 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
             logging.error(f"IndexError in animate_step: {e}")
             messagebox.showerror("Animation Error", f"An error occurred during animation: {e}")
 
+    def distance(a, b):
+        return np.linalg.norm(a - b)
+
     while survivors.size > 0:
         path_found_for_any_survivor = False
-        survivor_indices_copy = list(range(survivors.shape[0])) # Create a copy to iterate safely
-        for survivor_index in survivor_indices_copy:
-            if survivor_index < survivors.shape[0]: # Check if index is still valid
-                survivor = survivors[survivor_index]
+        # Sort survivors by distance from the agent
+        distances = np.apply_along_axis(lambda s: distance(s, np.array(agent_location)), 1, survivors)
+        sorted_indices = np.argsort(distances)
+        survivors = survivors[sorted_indices]
+
+        survivors_copy = np.copy(survivors) # Create a copy to iterate safely
+        for survivor_index in range(survivors_copy.shape[0]):
+            if survivor_index < survivors_copy.shape[0]: # Check if index is still valid
+                survivor = survivors_copy[survivor_index]
                 survivor_location = tuple(survivor)
                 # Check if the survivor is still present before attempting to rescue them
                 if grid[survivor_location] == SurvivorType.SURVIVOR.value:
-                    path = astar(grid, agent_location, survivor_location, allow_diagonal=True)
+                    path = astar(grid, agent_location, survivor_location)
                     if path:
                         path_found_for_any_survivor = True
                         logging.info(f"Found path from {agent_location} to {survivor_location}: {path}")
@@ -80,7 +88,8 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
                     else:
                         logging.error(f"No path found to survivor at {survivor_location}. Giving up on this survivor.")
                         unreachable_survivors += 1
-                        survivors = np.array([s for s in survivors if not np.array_equal(s, survivor)]) #remove survivor if no path found
+                        #remove survivor if no path found
+                        survivors = np.array([s for s in survivors if not np.array_equal(s, survivor)])
 
         if survivors.size == 0:
             summary_message = f"Simulation complete.\n{rescued_survivors} survivors rescued."

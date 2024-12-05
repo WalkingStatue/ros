@@ -191,7 +191,10 @@ def load_level(level_name):
         grid_frame.grid(row=0, column=1, sticky="nsew")
         grid_frame.bind("<ButtonRelease-1>", stop_drag)
         grid_buttons = create_grid_ui(grid_frame, grid)
-        agent_location = None
+        agent_location = None #This line was causing the issue
+        agent_row, agent_col = np.where(grid == AgentType.AGENT.value)
+        if agent_row.size > 0:
+            agent_location = (agent_row[0], agent_col[0])
         canvas.config(width=grid_size * 60, height=grid_size * 60)
         sidebar.config(height=grid_size * 60)
         right_sidebar.config(height=grid_size * 60)
