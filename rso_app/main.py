@@ -4,7 +4,9 @@ import os
 from PIL import Image, ImageTk
 import glob
 import logging
-from tkinter import messagebox, StringVar
+from tkinter import messagebox, StringVar, ttk
+from enum import Enum
+import premade_levels
 
 try:
     from grid import create_grid, ObstacleType, AgentType, SurvivorType
@@ -16,6 +18,12 @@ try:
     from simulation import run_simulation
 except ImportError as e:
     messagebox.showerror("Import Error", f"Could not import from 'simulation.py': {e}")
+    exit()
+
+try:
+    from grid_utils import reset_grid
+except ImportError as e:
+    messagebox.showerror("Import Error", f"Could not import from 'grid_utils.py': {e}")
     exit()
 
 
@@ -71,6 +79,7 @@ def create_sidebar(sidebar_frame, item_images):
             label.bind("<Button-1>", lambda event, it=item_type, img=image: start_drag(event, it, img))
             label.bind("<ButtonRelease-1>", stop_drag)
             label.pack(pady=2)
+
 
 # Functions for placing and removing items from the grid
 def place_item(item_type, image, row, col):
@@ -141,6 +150,20 @@ def run_sim():
     finally:
         status_text.set("Simulation finished.")
 
+def reset_sim():
+    global grid, grid_buttons, agent_location, grid_size
+    grid = create_grid(grid_size, grid_size) # Reset to default grid size
+    grid_frame.destroy()
+    grid_frame = tk.Frame(root)
+    grid_frame.grid(row=0, column=1, sticky="nsew")
+    grid_frame.bind("<ButtonRelease-1>", stop_drag)
+    grid_buttons = create_grid_ui(grid_frame, grid)
+    agent_location = None
+    status_text.set("Simulation reset.")
+    for key, button in grid_buttons.items():
+        button.config(image="")
+        button.config(bg="white")
+
 def save_grid_state():
     logging.info(f"Grid state on closing: \n{np.array_str(grid)}")
     # Add your grid saving logic here if needed.  For example, you could save to a file.
@@ -155,6 +178,47 @@ def toggle_fullscreen():
     global is_fullscreen
     is_fullscreen = not is_fullscreen
     root.attributes("-fullscreen", is_fullscreen)
+
+def load_level(level_name):
+    global grid, grid_buttons, grid_size, grid_frame, agent_location
+    try:
+        level_index = int(level_name.split()[1]) - 1
+        level_data = premade_levels.levels[level_index]
+        grid_size = len(level_data)
+        grid = np.array(level_data)
+        grid_frame.destroy()
+        grid_frame = tk.Frame(root)
+        grid_frame.grid(row=0, column=1, sticky="nsew")
+        grid_frame.bind("<ButtonRelease-1>", stop_drag)
+        grid_buttons = create_grid_ui(grid_frame, grid)
+        agent_location = None
+        canvas.config(width=grid_size * 60, height=grid_size * 60)
+        sidebar.config(height=grid_size * 60)
+        right_sidebar.config(height=grid_size * 60)
+        root.geometry(f"{grid_size * 60 + 450}x{grid_size * 60 + 100}")
+        root.update()
+        update_images_on_grid()
+        status_text.set(f"Level {level_index + 1} loaded.")
+    except (IndexError, ValueError):
+        logging.error(f"Error: Invalid level name: {level_name}")
+        messagebox.showerror("Level Load Error", f"Invalid level name: {level_name}")
+
+def update_images_on_grid():
+    for r in range(len(grid)):
+        for c in range(len(grid[0])):
+            item_type = grid[r,c]
+            if item_type == 0:
+                grid_buttons[(r,c)].config(image="", bg="white")
+            elif item_type == ObstacleType.BUILDING.value:
+                grid_buttons[(r,c)].config(image=item_images[ObstacleType.BUILDING][0], bg="black")
+            elif item_type == ObstacleType.RUBBLE.value:
+                grid_buttons[(r,c)].config(image=item_images[ObstacleType.RUBBLE][0], bg="black")
+            elif item_type == ObstacleType.FALLEN_TREE.value:
+                grid_buttons[(r,c)].config(image=item_images[ObstacleType.FALLEN_TREE][0], bg="black")
+            elif item_type == AgentType.AGENT.value:
+                grid_buttons[(r,c)].config(image=item_images[AgentType.AGENT][0], bg="black")
+            elif item_type == SurvivorType.SURVIVOR.value:
+                grid_buttons[(r,c)].config(image=item_images[SurvivorType.SURVIVOR][0], bg="black")
 
 
 # Initialize the main window
@@ -183,6 +247,9 @@ def update_grid_size():
     right_sidebar.config(height=canvas_height)
     root.geometry(f"{canvas_width + 450}x{canvas_height + 100}")
     root.update()
+    for key, button in grid_buttons.items():
+        button.config(image="")
+        button.config(bg="white")
 
 # Create the canvas for the grid
 canvas = tk.Canvas(root, width=10*60, height=10*60) # Initialize canvas with default size
@@ -223,6 +290,15 @@ if item_images is None:
     root.destroy()
     exit()
 
+# Load level images (placeholder - replace with actual image loading)
+level_images = {
+    "Level 1": ImageTk.PhotoImage(Image.new("RGB", (50, 50), "red")),
+    "Level 2": ImageTk.PhotoImage(Image.new("RGB", (50, 50), "blue")),
+    "Level 3": ImageTk.PhotoImage(Image.new("RGB", (50, 50), "green")),
+    "Level 4": ImageTk.PhotoImage(Image.new("RGB", (50, 50), "green")),
+    "Level 5": ImageTk.PhotoImage(Image.new("RGB", (50, 50), "green")),
+}
+
 create_sidebar(sidebar_inner, item_images)
 
 # Ensure the sidebar's inner frame resizes and scrolls properly
@@ -244,24 +320,43 @@ right_sidebar.config(yscrollcommand=right_scrollbar.set)
 right_sidebar_inner = tk.Frame(right_sidebar)
 right_sidebar.create_window((0, 0), window=right_sidebar_inner, anchor="nw")
 
-def create_grid_size_selector(parent):
-    grid_size_title = tk.Label(parent, text="Grid Size", font=("Arial", 14, "bold"), pady=10)
-    grid_size_title.grid(row=0, column=0, columnspan=2, sticky="w")
+def create_grid_size_selector(parent, row_num): # Pass row_num as parameter
+    grid_size_label = ttk.Label(parent, text="Grid Size:", font=("Arial", 12))
+    grid_size_label.grid(row=row_num, column=0, sticky="w", padx=5, pady=5)
 
-    row_num = 1
     for size in grid_size_options:
         radio_button = tk.Radiobutton(parent, text=f"{size}x{size}", variable=selected_grid_size, value=size, command=update_grid_size)
-        radio_button.grid(row=row_num, column=0, sticky="w")
         row_num += 1
+        radio_button.grid(row=row_num, column=0, sticky="w", padx=5, pady=2)
+    return row_num # Return updated row_num
+
 
 # Grid size selector in right sidebar
-create_grid_size_selector(right_sidebar_inner)
+row_num = 0
+row_num = create_grid_size_selector(right_sidebar_inner, row_num) # Pass row_num and get updated value
+row_num += 1 # Add extra spacing
 
-update_grid_size() #call update_grid_size to initialize grid_size
+# Add premade levels to the right sidebar
+level_label = ttk.Label(right_sidebar_inner, text="Premade Levels:", font=("Arial", 12))
+level_label.grid(row=row_num, column=0, sticky="w", padx=5, pady=(10, 5)) # Added pady
+row_num += 1
+
+for i, level_name in enumerate(map(lambda x: f"Level {x+1}", range(len(premade_levels.levels)))):
+    level_button = tk.Button(right_sidebar_inner, text=level_name,
+                             command=lambda name=level_name: load_level(name),
+                             relief=tk.RAISED, bd=2, padx=10, pady=5, font=("Arial", 10)) #Added styling
+    level_button.grid(row=row_num + i, column=0, sticky="w", pady=2)
+
+
+update_grid_size()
 
 # Run Simulation button
 run_button = tk.Button(root, text="Run Simulation", command=run_sim, bg="#4CAF50", fg="white", font=("Arial", 12, "bold"))
-run_button.grid(row=1, column=0, columnspan=3, pady=10)
+run_button.grid(row=1, column=0, columnspan=1, pady=10)
+
+# Reset Simulation button
+reset_button = tk.Button(root, text="Reset Simulation", command=reset_sim, bg="#f44336", fg="white", font=("Arial", 12, "bold"))
+reset_button.grid(row=1, column=0, columnspan=4, pady=10, padx=(0,10))
 
 # Status bar
 status_text = StringVar()

@@ -27,54 +27,60 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
 
     def animate_step(path, survivor_location, step_index, item_images):
         nonlocal agent_location, survivors, rescued_survivors
-        for step_index in range(len(path)):
-            step = path[step_index]
-            if step != survivor_location:
-                grid[agent_location] = 0
-                try:
-                    grid_buttons[agent_location].config(bg="white", image="")
-                except IndexError:
-                    logging.error(f"IndexError: Invalid button index {agent_location}")
-                    return
-                agent_location = step
-                grid[agent_location] = 2
-                try:
-                    grid_buttons[agent_location].config(bg="black", image=item_images[AgentType.AGENT][0])
-                except IndexError:
-                    logging.error(f"IndexError: Invalid button index {agent_location}")
-                    return
-                root.update()
-                time.sleep(0.5) # Use time.sleep for animation instead of root.after
-            else:
-                grid[step] = -2
-                try:
-                    grid_buttons[step].config(bg="black", image=item_images[SurvivorType.SURVIVOR][0])
-                except IndexError:
-                    logging.error(f"IndexError: Invalid button index {step}")
-                    return
-                logging.info(f"Survivor at {step} rescued.")
-                rescued_survivors += 1
-                # Remove the rescued survivor from the survivors array
-                survivors = np.array([s for s in survivors if not np.array_equal(s, step)])
-                root.update()
-                break # Exit the loop after rescuing a survivor
+        try:
+            for step_index in range(len(path)):
+                step = path[step_index]
+                if step != survivor_location:
+                    grid[agent_location] = 0
+                    try:
+                        grid_buttons[agent_location].config(bg="white", image="")
+                    except KeyError:
+                        logging.error(f"KeyError: Invalid button index {agent_location}")
+                        return
+                    agent_location = step
+                    grid[agent_location] = 2
+                    try:
+                        grid_buttons[agent_location].config(bg="black", image=item_images[AgentType.AGENT][0])
+                    except KeyError:
+                        logging.error(f"KeyError: Invalid button index {agent_location}")
+                        return
+                    root.update()
+                    time.sleep(0.5) # Use time.sleep for animation instead of root.after
+                else:
+                    grid[step] = -2
+                    try:
+                        grid_buttons[step].config(bg="black", image=item_images[SurvivorType.SURVIVOR][0])
+                    except KeyError:
+                        logging.error(f"KeyError: Invalid button index {step}")
+                        return
+                    logging.info(f"Survivor at {step} rescued.")
+                    rescued_survivors += 1
+                    # Remove the rescued survivor from the survivors array
+                    survivors = np.array([s for s in survivors if not np.array_equal(s, step)])
+                    root.update()
+                    break # Exit the loop after rescuing a survivor
+        except IndexError as e:
+            logging.error(f"IndexError in animate_step: {e}")
+            messagebox.showerror("Animation Error", f"An error occurred during animation: {e}")
 
     while survivors.size > 0:
         path_found_for_any_survivor = False
-        for survivor_index in range(survivors.shape[0]):
-            survivor = survivors[survivor_index]
-            survivor_location = tuple(survivor)
-            # Check if the survivor is still present before attempting to rescue them
-            if grid[survivor_location] == SurvivorType.SURVIVOR.value:
-                path = astar(grid, agent_location, survivor_location, allow_diagonal=True)
-                if path:
-                    path_found_for_any_survivor = True
-                    logging.info(f"Found path from {agent_location} to {survivor_location}: {path}")
-                    animate_step(path, survivor_location, 0, item_images)
-                else:
-                    logging.error(f"No path found to survivor at {survivor_location}. Giving up on this survivor.")
-                    unreachable_survivors += 1
-                    survivors = np.array([s for s in survivors if not np.array_equal(s, survivor)]) #remove survivor if no path found
+        survivor_indices_copy = list(range(survivors.shape[0])) # Create a copy to iterate safely
+        for survivor_index in survivor_indices_copy:
+            if survivor_index < survivors.shape[0]: # Check if index is still valid
+                survivor = survivors[survivor_index]
+                survivor_location = tuple(survivor)
+                # Check if the survivor is still present before attempting to rescue them
+                if grid[survivor_location] == SurvivorType.SURVIVOR.value:
+                    path = astar(grid, agent_location, survivor_location, allow_diagonal=True)
+                    if path:
+                        path_found_for_any_survivor = True
+                        logging.info(f"Found path from {agent_location} to {survivor_location}: {path}")
+                        animate_step(path, survivor_location, 0, item_images)
+                    else:
+                        logging.error(f"No path found to survivor at {survivor_location}. Giving up on this survivor.")
+                        unreachable_survivors += 1
+                        survivors = np.array([s for s in survivors if not np.array_equal(s, survivor)]) #remove survivor if no path found
 
         if survivors.size == 0:
             summary_message = f"Simulation complete.\n{rescued_survivors} survivors rescued."
