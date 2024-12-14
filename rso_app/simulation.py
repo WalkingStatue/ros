@@ -28,37 +28,54 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
     def animate_step(path, survivor_location, step_index, item_images):
         nonlocal agent_location, survivors, rescued_survivors
         try:
+            # Dictionary to store the saved grid values and images temporarily
+            saved_states = {}
+
             for step_index in range(len(path)):
                 step = path[step_index]
+
                 if step != survivor_location:
-                    grid[agent_location] = 0
+                    # Save the current cell's state where the agent will move
+                    if step not in saved_states:
+                        saved_states[step] = {
+                            "value": grid[step],
+                            "image": grid_buttons[step].cget("image")
+                        }
+
+                    # Clear the previous agent location
                     try:
-                        grid_buttons[agent_location].config(bg="white", image="")
+                        prev_value = saved_states.get(agent_location, {}).get("value", 0)
+                        prev_image = saved_states.get(agent_location, {}).get("image", "")
+                        grid_buttons[agent_location].config(bg="white", image=prev_image)
+                        grid[agent_location] = prev_value
                     except KeyError:
                         logging.error(f"KeyError: Invalid button index {agent_location}")
                         return
+
+                    # Move the agent to the new location
                     agent_location = step
                     grid[agent_location] = 2
-                    try:
-                        grid_buttons[agent_location].config(bg="black", image=item_images[AgentType.AGENT][0])
-                    except KeyError:
-                        logging.error(f"KeyError: Invalid button index {agent_location}")
-                        return
+                    grid_buttons[agent_location].config(bg="black", image=item_images[AgentType.AGENT][0])
+
                     root.update()
-                    time.sleep(0.5) # Use time.sleep for animation instead of root.after
+                    time.sleep(0.5)
+
                 else:
+                    # Mark the survivor as rescued
                     grid[step] = -2
-                    try:
-                        grid_buttons[step].config(bg="black", image=item_images[SurvivorType.SURVIVOR][0])
-                    except KeyError:
-                        logging.error(f"KeyError: Invalid button index {step}")
-                        return
+                    grid_buttons[step].config(bg="black", image=item_images[SurvivorType.RESCUED_SURVIVOR][0])
+
                     logging.info(f"Survivor at {step} rescued.")
                     rescued_survivors += 1
-                    # Remove the rescued survivor from the survivors array
                     survivors = np.array([s for s in survivors if not np.array_equal(s, step)])
                     root.update()
-                    break # Exit the loop after rescuing a survivor
+                    break
+
+                    # Restore all saved states after simulation
+                   # for position, state in saved_states.items():
+                    #    grid[position] = state["value"]
+                     #   grid_buttons[position].config(image=state["image"])
+
         except IndexError as e:
             logging.error(f"IndexError in animate_step: {e}")
             messagebox.showerror("Animation Error", f"An error occurred during animation: {e}")
