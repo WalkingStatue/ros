@@ -25,61 +25,52 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
     rescued_survivors = 0
     unreachable_survivors = 0
 
-    def animate_step(path, survivor_location, step_index, item_images):
-        nonlocal agent_location, survivors, rescued_survivors
-        try:
-            # Dictionary to store the saved grid values and images temporarily
-            saved_states = {}
+    def animate_step(path, survivor_location, item_images):
+        nonlocal agent_location, survivors, rescued_survivors, grid
+        initial_agent_location = agent_location  # Store the agent's initial location
 
-            for step_index in range(len(path)):
-                step = path[step_index]
+        # Store original cell states for restoration
+        saved_states = {}  
 
-                if step != survivor_location:
-                    # Save the current cell's state where the agent will move
-                    if step not in saved_states:
-                        saved_states[step] = {
-                            "value": grid[step],
-                            "image": grid_buttons[step].cget("image")
-                        }
+        for step_index, step in enumerate(path):
+            try:
+                # Save the current state of the cell before moving the agent
+                if step not in saved_states:
+                    saved_states[step] = {
+                        "value": grid[step],
+                        "image": grid_buttons[step].cget("image")
+                    }
 
-                    # Clear the previous agent location
-                    try:
-                        prev_value = saved_states.get(agent_location, {}).get("value", 0)
-                        prev_image = saved_states.get(agent_location, {}).get("image", "")
-                        grid_buttons[agent_location].config(bg="white", image=prev_image)
-                        grid[agent_location] = prev_value
-                    except KeyError:
-                        logging.error(f"KeyError: Invalid button index {agent_location}")
-                        return
+                # Restore the previous cell's state
+                if step_index > 0:
+                    prev_step = path[step_index - 1]
+                    grid[prev_step] = 0  # Ensure the previous location is empty
+                    grid_buttons[prev_step].config(bg="white", image=saved_states[prev_step]["image"])
 
-                    # Move the agent to the new location
-                    agent_location = step
-                    grid[agent_location] = 2
-                    grid_buttons[agent_location].config(bg="black", image=item_images[AgentType.AGENT][0])
+                # Update the agent's location and image
+                agent_location = step
+                grid[agent_location] = AgentType.AGENT.value 
+                grid_buttons[agent_location].config(bg="black", image=item_images[AgentType.AGENT][0])
 
-                    root.update()
-                    time.sleep(0.5)
+                # Set the previous location to 0 (empty) after the agent moves 
+                #if step_index > 0: grid[path[step_index - 1]] = 0  
 
-                else:
-                    # Mark the survivor as rescued
-                    grid[step] = -2
+                root.update()
+                time.sleep(0.5)
+
+                if step == survivor_location:
+                    # Mark survivor as rescued
+                    grid[step] = SurvivorType.RESCUED_SURVIVOR.value
                     grid_buttons[step].config(bg="black", image=item_images[SurvivorType.RESCUED_SURVIVOR][0])
-
-                    logging.info(f"Survivor at {step} rescued.")
                     rescued_survivors += 1
                     survivors = np.array([s for s in survivors if not np.array_equal(s, step)])
-                    root.update()
-                    break
+                    logging.info(f"Survivor at {step} rescued.")
+                    break  # Exit loop after rescuing survivor
 
-                    # Restore all saved states after simulation
-                   # for position, state in saved_states.items():
-                    #    grid[position] = state["value"]
-                     #   grid_buttons[position].config(image=state["image"])
-
-        except IndexError as e:
-            logging.error(f"IndexError in animate_step: {e}")
-            messagebox.showerror("Animation Error", f"An error occurred during animation: {e}")
-
+            except (IndexError, KeyError) as e:
+                logging.error(f"Error in animate_step: {e}")
+                messagebox.showerror("Animation Error", f"An error occurred during animation: {e}")
+                return  # Exit the function if an error occurs
     def distance(a, b):
         return np.linalg.norm(a - b)
 
@@ -101,7 +92,7 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
                     if path:
                         path_found_for_any_survivor = True
                         logging.info(f"Found path from {agent_location} to {survivor_location}: {path}")
-                        animate_step(path, survivor_location, 0, item_images)
+                        animate_step(path, survivor_location,item_images)
                     else:
                         logging.error(f"No path found to survivor at {survivor_location}. Giving up on this survivor.")
                         unreachable_survivors += 1
