@@ -34,24 +34,23 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
 
         for step_index, step in enumerate(path):
             try:
-                # Save the current state of the cell before moving the agent
-                if step not in saved_states:
-                    saved_states[step] = {
-                        "value": grid[step],
-                        "image": grid_buttons[step].cget("image")
-                    }
-
+                
                 # Restore the previous cell's state
                 if step_index > 0:
                     prev_step = path[step_index - 1]
                     grid[prev_step] = 0  # Ensure the previous location is empty
                     grid_buttons[prev_step].config(bg="white", image=saved_states[prev_step]["image"])
-
+                # Save the current state of the cell before moving the agent
+                if step not in saved_states:
+                        saved_states[step] = {
+                            "value": grid[step],
+                            "image": grid_buttons[step].cget("image")
+                        }
                 # Update the agent's location and image
                 agent_location = step
                 grid[agent_location] = AgentType.AGENT.value 
                 grid_buttons[agent_location].config(bg="black", image=item_images[AgentType.AGENT][0])
-
+                
                 # Set the previous location to 0 (empty) after the agent moves 
                 #if step_index > 0: grid[path[step_index - 1]] = 0  
 
