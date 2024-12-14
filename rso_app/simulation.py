@@ -24,35 +24,46 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
     total_time = 0
     rescued_survivors = 0
     unreachable_survivors = 0
-
+    move_counter = 0
     def animate_step(path, survivor_location, item_images):
-        nonlocal agent_location, survivors, rescued_survivors, grid
+        nonlocal agent_location, survivors, rescued_survivors, grid, move_counter
         initial_agent_location = agent_location  # Store the agent's initial location
-
+        
         # Store original cell states for restoration
-        saved_states = {}  
+        saved_states = {}
+        print(move_counter , "Before Loop")
+        # Clear the initial agent location before the animation starts
+        grid[initial_agent_location] = 0
+        grid_buttons[initial_agent_location].config(bg="white", image=saved_states.get(initial_agent_location, {}).get("image", None))
 
         for step_index, step in enumerate(path):
+            
+            
             try:
-                
+                print(move_counter , "After update")
+                move_counter += 1
+                if move_counter == 1:
+                    print(move_counter , "after Loop")
+                # Only clear the agent's starting position
+                    #grid[initial_agent_location] = 0  # Set the initial position to empty
+                    grid_buttons[initial_agent_location].config(bg="white", image="")
                 # Restore the previous cell's state
                 if step_index > 0:
                     prev_step = path[step_index - 1]
                     grid[prev_step] = 0  # Ensure the previous location is empty
                     grid_buttons[prev_step].config(bg="white", image=saved_states[prev_step]["image"])
+
                 # Save the current state of the cell before moving the agent
                 if step not in saved_states:
-                        saved_states[step] = {
-                            "value": grid[step],
-                            "image": grid_buttons[step].cget("image")
-                        }
+                    saved_states[step] = {
+                        "value": grid[step],
+                        "image": grid_buttons[step].cget("image")
+                    }
+
                 # Update the agent's location and image
                 agent_location = step
-                grid[agent_location] = AgentType.AGENT.value 
+                grid[agent_location] = AgentType.AGENT.value
                 grid_buttons[agent_location].config(bg="black", image=item_images[AgentType.AGENT][0])
-                
-                # Set the previous location to 0 (empty) after the agent moves 
-                #if step_index > 0: grid[path[step_index - 1]] = 0  
 
                 root.update()
                 time.sleep(0.5)
@@ -70,6 +81,8 @@ def run_simulation(grid, agent_location, grid_buttons, root, item_images, status
                 logging.error(f"Error in animate_step: {e}")
                 messagebox.showerror("Animation Error", f"An error occurred during animation: {e}")
                 return  # Exit the function if an error occurs
+
+
     def distance(a, b):
         return np.linalg.norm(a - b)
 

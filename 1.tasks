@@ -1,5 +1,5 @@
-☐ fix the rescued surivor image not properly displayed @critical
-☐ when the agent cuts throughs obstacles the image disappers which should not @critical  
+✔ fix the rescued surivor image not properly displayed @critical @done (12/14/2024, 8:36:33 PM)
+✔ when the agent cuts throughs obstacles the image disappers which should not @critical @done (12/14/2024, 8:36:34 PM)
 ☐ add dynamic fire @low
 ☐ displays the cost of the path that it calculated in terminal @high 
 ☐ add a timer @high 
