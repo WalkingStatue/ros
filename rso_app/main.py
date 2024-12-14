@@ -285,6 +285,7 @@ item_image_paths = {
     ObstacleType.FALLEN_TREE: os.path.join(image_dir, "trees", "*.png"),
     AgentType.AGENT: os.path.join(image_dir, "persons", "agent.png"),
     SurvivorType.SURVIVOR: os.path.join(image_dir, "persons", "survivor.png"),
+    SurvivorType.RESCUED_SURVIVOR: os.path.join(image_dir, "persons", "rsurvivor.png"), # Added rescued survivor image path
 }
 
 # Load item images

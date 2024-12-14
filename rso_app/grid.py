@@ -11,7 +11,7 @@ class AgentType(Enum):
 
 class SurvivorType(Enum):
     SURVIVOR = -1
-
+    RESCUED_SURVIVOR = -2 
 def create_grid(rows, cols):
     grid = np.zeros((rows, cols), dtype=int)
     #Place agent
