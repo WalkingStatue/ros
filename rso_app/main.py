@@ -7,6 +7,7 @@ import logging
 from tkinter import messagebox, StringVar, ttk
 from enum import Enum
 import premade_levels
+import time
 
 try:
     from grid import create_grid, ObstacleType, AgentType, SurvivorType
@@ -132,7 +133,7 @@ def stop_drag(event):
 # Function to run the simulation
 agent_location = None
 def run_sim():
-    global item_images, agent_location
+    global item_images, agent_location, timer_label
     if agent_location is None:
         logging.error("Error: Agent location not set. Please place the agent.")
         messagebox.showerror("Simulation Error", "Agent location not set.")
@@ -141,17 +142,33 @@ def run_sim():
         messagebox.showerror("Image Error", "Images could not be loaded.")
         return
     status_text.set("Simulation running...")
+    global simulation_running
+    simulation_running = True
     root.update()
+    start_time = time.time()
+    def update_timer():
+        global simulation_running
+        if simulation_running:
+            elapsed_time = time.time() - start_time
+            timer_label.config(text=f"Time: {elapsed_time:.2f}")
+            root.after(100, update_timer)
+    update_timer()
     try:
-        run_simulation(grid, agent_location, grid_buttons, root, item_images, status_text)
+        run_simulation(grid, agent_location, grid_buttons, root, item_images, status_text, stop_timer)
     except Exception as e:
         logging.exception(f"An unexpected error occurred during simulation: {e}")
         messagebox.showerror("Simulation Error", f"An unexpected error occurred: {e}")
     finally:
-        status_text.set("Simulation finished.")
+        stop_timer()
+
+def stop_timer():
+    global simulation_running
+    simulation_running = False
+    status_text.set("Simulation finished.")
 
 def reset_sim():
-    global grid, grid_buttons, agent_location, grid_size
+    global grid, grid_buttons, agent_location, grid_size, simulation_running
+    simulation_running = False
     grid = create_grid(grid_size, grid_size) # Reset to default grid size
     grid_frame.destroy()
     grid_frame = tk.Frame(root)
@@ -163,6 +180,7 @@ def reset_sim():
     for key, button in grid_buttons.items():
         button.config(image="")
         button.config(bg="white")
+    stop_timer()
 
 def save_grid_state():
     logging.info(f"Grid state on closing: \n{np.array_str(grid)}")
@@ -335,9 +353,11 @@ def create_grid_size_selector(parent, row_num): # Pass row_num as parameter
     return row_num # Return updated row_num
 
 
-# Grid size selector in right sidebar
-row_num = 0
-row_num = create_grid_size_selector(right_sidebar_inner, row_num) # Pass row_num and get updated value
+# Timer label
+timer_label = ttk.Label(right_sidebar_inner, text="Time: 0.00", font=("Arial", 12))
+timer_label.grid(row=0, column=0, sticky="w", padx=5, pady=5)
+row_num = 1
+row_num = create_grid_size_selector(right_sidebar_inner, row_num) # Pass row_num as parameter
 row_num += 1 # Add extra spacing
 
 # Add premade levels to the right sidebar
